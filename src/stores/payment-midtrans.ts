@@ -4,28 +4,38 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
 // TypeScript Related Type
-type JSONResponse = {
+type JSONResponse<T> = {
   statusCode: number
   error?: string
-  data?: {
-    token: string
-  }
+  data?: T
 }
 
+type JSONResponseToken = JSONResponse<{
+  token: string
+}>
+
+type JSONResponseMessage = JSONResponse<{
+  message: string
+}>
+
+// https://docs.midtrans.com/reference/js-callback
 type SnapObject = {
+  status_code: string
+  status_message: string
+  transaction_id: string
+  order_id: string
+  gross_amount: string
+  payment_type: string
+  transaction_status: string
+  transaction_time: string
+
+  // For Card Payment
   bank: string
   card_type: string
   finish_redirect_url: string
   fraud_status: string
-  gross_amount: string
   masked_card: string
-  order_id: string
-  payment_type: string
-  status_code: string
-  status_message: string
-  transaction_id: string
-  transaction_status: string
-  transaction_time: string
+  approval_code: string
 }
 // End of TypeScript Related Type
 
@@ -34,7 +44,7 @@ const snapUrl = 'https://app.sandbox.midtrans.com/snap/snap.js'
 const clientKey = import.meta.env.VITE_MIDTRANS_CLIENT_KEY
 
 // Server URL to ask for token midtrans
-const serverUrl = 'http://localhost:3000/v1/payment/midtrans-payment'
+const serverUrl = 'http://localhost:3000/v1/payment/midtrans/'
 
 export const usePaymentMidtransStore = defineStore('payment-midtrans', () => {
   // State
@@ -44,7 +54,6 @@ export const usePaymentMidtransStore = defineStore('payment-midtrans', () => {
 
   const paymentErrorMessage = ref<string | undefined>(undefined)
   const paymentSuccessMessage = ref<string | undefined>(undefined)
-  const paymentSuccessId = ref<string | undefined>(undefined)
 
   const snapScript = ref<HTMLScriptElement | undefined>(undefined)
 
@@ -75,7 +84,7 @@ export const usePaymentMidtransStore = defineStore('payment-midtrans', () => {
       paymentErrorMessage.value = undefined
       paymentSuccessMessage.value = undefined
 
-      const response = await fetch(`${serverUrl}`, {
+      const response = await fetch(`${serverUrl}/payment`, {
         method: 'POST',
         body: JSON.stringify({
           itemName,
@@ -85,7 +94,7 @@ export const usePaymentMidtransStore = defineStore('payment-midtrans', () => {
           'Content-Type': 'application/json'
         }
       })
-      const responseJson: JSONResponse = await response.json()
+      const responseJson: JSONResponseToken = await response.json()
 
       if (responseJson.error) {
         throw new Error(responseJson.error)
@@ -94,9 +103,12 @@ export const usePaymentMidtransStore = defineStore('payment-midtrans', () => {
       if (responseJson.data) {
         // @ts-ignore
         window.snap.pay(responseJson.data.token, {
-          onSuccess: (result: SnapObject) => {
-            paymentSuccessId.value = result.order_id
-            paymentSuccessMessage.value = result.status_message
+          onSuccess: payMeCallback,
+          onPending: (result: SnapObject) => {
+            console.log('Payment is on pending', result)
+          },
+          onError: (error: unknown) => {
+            console.log(error)
           },
           onClose: () => {
             console.log('Snap sucessfully closed')
@@ -111,6 +123,24 @@ export const usePaymentMidtransStore = defineStore('payment-midtrans', () => {
     }
   }
 
+  const payMeCallback = async (result: SnapObject) => {
+    const response = await fetch(`${serverUrl}/payment-callback`, {
+      method: 'POST',
+      body: JSON.stringify({
+        transactionId: result.order_id
+      }),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+
+    const responseJson: JSONResponseMessage = await response.json()
+
+    if (responseJson.data) {
+      paymentSuccessMessage.value = responseJson.data.message
+    }
+  }
+
   // Return value
   return {
     isPaymentLoading,
@@ -118,7 +148,6 @@ export const usePaymentMidtransStore = defineStore('payment-midtrans', () => {
     isPaymentError,
     paymentErrorMessage,
     paymentSuccessMessage,
-    paymentSuccessId,
     initializeSnap,
     unsubscribeSnap,
     payMe
