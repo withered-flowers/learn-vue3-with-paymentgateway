@@ -44,17 +44,20 @@ const snapUrl = 'https://app.sandbox.midtrans.com/snap/snap.js'
 const clientKey = import.meta.env.VITE_MIDTRANS_CLIENT_KEY
 
 // Server URL to ask for token midtrans
-const serverUrl = 'http://localhost:3000/v1/payment/midtrans/'
+const serverUrl = 'http://localhost:3000/v1/payment/midtrans'
 
 export const usePaymentMidtransStore = defineStore('payment-midtrans', () => {
   // State
   const isPaymentLoading = ref<boolean>(false)
+  const isPaymentPending = ref<boolean>(false)
   const isPaymentSuccess = ref<boolean>(false)
   const isPaymentError = ref<boolean>(false)
 
   const paymentErrorMessage = ref<string | undefined>(undefined)
   const paymentSuccessMessage = ref<string | undefined>(undefined)
 
+  // Midtrans cannot insert script itself
+  // So we need to insert it
   const snapScript = ref<HTMLScriptElement | undefined>(undefined)
 
   // Actions
@@ -80,9 +83,7 @@ export const usePaymentMidtransStore = defineStore('payment-midtrans', () => {
 
   const payMe = async (itemName: string, itemPrice: number) => {
     try {
-      isPaymentLoading.value = true
-      paymentErrorMessage.value = undefined
-      paymentSuccessMessage.value = undefined
+      initializeState()
 
       const response = await fetch(`${serverUrl}/payment`, {
         method: 'POST',
@@ -121,6 +122,17 @@ export const usePaymentMidtransStore = defineStore('payment-midtrans', () => {
     } finally {
       isPaymentLoading.value = false
     }
+  }
+
+  // Utilities
+  const initializeState = () => {
+    isPaymentLoading.value = true
+    isPaymentPending.value = false
+    isPaymentSuccess.value = false
+    isPaymentError.value = false
+
+    paymentErrorMessage.value = undefined
+    paymentSuccessMessage.value = undefined
   }
 
   const payMeCallback = async (result: SnapObject) => {

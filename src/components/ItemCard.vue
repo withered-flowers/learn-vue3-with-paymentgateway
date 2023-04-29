@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { usePaymentMidtransStore } from '@/stores/payment-midtrans'
+import { usePaymentXenditStore } from '@/stores/payment-xendit'
 
 defineProps<{
   name: string
@@ -7,8 +8,10 @@ defineProps<{
 }>()
 
 const midtransStore = usePaymentMidtransStore()
+const xenditStore = usePaymentXenditStore()
 
-const { payMe } = midtransStore
+const { payMe: payMeMidtrans } = midtransStore
+const { payMe: payMeXendit } = xenditStore
 </script>
 
 <template>
@@ -17,9 +20,15 @@ const { payMe } = midtransStore
     <p>Harga: Rp. {{ price.toLocaleString('id-ID') }},00</p>
     <button
       class="py-2 px-4 bg-blue-200 rounded hover:bg-blue-400 hover:text-white transition-colors duration-300"
-      @click="payMe(name, price)"
+      @click="payMeMidtrans(name, price)"
     >
       Buy (Midtrans)
+    </button>
+    <button
+      class="py-2 px-4 bg-blue-200 rounded hover:bg-blue-400 hover:text-white transition-colors duration-300"
+      @click="payMeXendit(name, price)"
+    >
+      Buy (Xendit)
     </button>
   </section>
 </template>
