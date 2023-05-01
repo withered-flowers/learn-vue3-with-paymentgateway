@@ -8,10 +8,6 @@ type JSONResponse<T> = {
   data?: T
 }
 
-type JSONResponseToken = JSONResponse<{
-  token: string
-}>
-
 type JSONResponseData = JSONResponse<{
   id: number
   external_id: number
@@ -35,10 +31,6 @@ export const usePaymentXenditStore = defineStore('payment-xendit', () => {
 
   const paymentErrorMessage = ref<string | undefined>(undefined)
   const paymentSuccessMessage = ref<string | undefined>(undefined)
-
-  // Xendit cannot open new window itself
-  // So we need to handle the window
-  const xenditWindow = ref<Window | null>(null)
 
   // Actions
   const payMe = async (itemName: string, itemPrice: number) => {
@@ -67,9 +59,8 @@ export const usePaymentXenditStore = defineStore('payment-xendit', () => {
       }
 
       if (responseJson.data) {
-        xenditWindow.value = window.open(responseJson.data.invoice_url)
-        xenditWindow.value?.addEventListener('beforeunload', payMeCallback)
-        // xenditWindow.value?.addEventListener('unload', payMeCallback)
+        // Redirect to new page
+        window.location.href = responseJson.data.invoice_url
       }
     } catch (err) {
       isPaymentError.value = true
@@ -78,11 +69,13 @@ export const usePaymentXenditStore = defineStore('payment-xendit', () => {
     }
   }
 
-  const payMeCallback = () => {
-    console.log('Callback called and window is closed !')
-    if (xenditWindow.value) {
-      xenditWindow.value.close()
-      xenditWindow.value = null
+  const payMeCallback = async (invoiceId: string) => {
+    // TODO: Check to the server backend that the payment already paid
+    const response = await fetch(`${serverUrl}/invoice/${invoiceId}`)
+    const responseJson: JSONResponseMessage = await response.json()
+
+    if (responseJson.data) {
+      paymentSuccessMessage.value = responseJson.data.message
     }
   }
 
@@ -93,6 +86,7 @@ export const usePaymentXenditStore = defineStore('payment-xendit', () => {
     isPaymentSuccess,
     paymentErrorMessage,
     paymentSuccessMessage,
-    payMe
+    payMe,
+    payMeCallback
   }
 })

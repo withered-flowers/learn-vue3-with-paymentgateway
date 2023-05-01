@@ -1,10 +1,27 @@
 <script setup lang="ts">
+import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { usePaymentMidtransStore } from '@/stores/payment-midtrans'
+import { usePaymentXenditStore } from '@/stores/payment-xendit'
 import ItemCard from '../components/ItemCard.vue'
 
 const midtransStore = usePaymentMidtransStore()
 const { paymentSuccessMessage, paymentErrorMessage } = storeToRefs(midtransStore)
+
+// Xendit must have redirection with invoice, so now we need to have another control for success / failure redirection from Xendit
+const xenditStore = usePaymentXenditStore()
+const { paymentSuccessMessage: xenditPaymentSuccessMessage } = storeToRefs(xenditStore)
+const { payMeCallback } = xenditStore
+
+const route = useRoute()
+
+// get URLSearchParams from vue router (query)
+const query = route.query
+
+// if there is external_id in query, then it means that the payment is from Xendit
+if (query.external_id) {
+  payMeCallback(query.external_id as string)
+}
 </script>
 
 <template>
@@ -15,9 +32,13 @@ const { paymentSuccessMessage, paymentErrorMessage } = storeToRefs(midtransStore
       {{ paymentErrorMessage }}
     </p>
 
-    <p class="bg-green-200 mb-4 p-4 rounded flex flex-col" v-if="paymentSuccessMessage">
+    <p
+      class="bg-green-200 mb-4 p-4 rounded flex flex-col"
+      v-if="paymentSuccessMessage || xenditPaymentSuccessMessage"
+    >
       <span>Message From Server:</span>
       <span class="font-semibold">{{ paymentSuccessMessage }}</span>
+      <span class="font-semibold">{{ xenditPaymentSuccessMessage }}</span>
     </p>
 
     <section class="how-to mb-4">
